@@ -31,7 +31,7 @@
     </div>
   </header>
 
-  <!-- =========== CART DRAWER =========== -->
+  <!-- =========== CART DRAWER (full) =========== -->
   <div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
   <aside class="cart-drawer" id="cartDrawer" hidden aria-hidden="true">
     <header class="cart-drawer-head">
@@ -60,6 +60,72 @@
       </div>
       <a class="btn btn-primary btn-block" id="checkoutBtn" href="./checkout.html">Finalizar pedido</a>
       <button class="btn btn-text" id="continueShoppingBtn">Continuar comprando</button>
+    </footer>
+  </aside>
+
+  <!-- =========== MINI CART DRAWER (pós Add-to-Cart) =========== -->
+  <div class="mini-cart-backdrop" id="miniCartBackdrop" hidden></div>
+  <aside class="mini-cart-drawer" id="miniCartDrawer" hidden aria-hidden="true" role="dialog" aria-labelledby="miniCartTitle">
+    <header class="mini-cart-head">
+      <div class="mini-cart-head-text">
+        <div class="mini-cart-check" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+        </div>
+        <div>
+          <p class="eyebrow">Adicionado à sacola</p>
+          <h2 id="miniCartTitle">Produto adicionado</h2>
+          <p class="mini-cart-sub">Seu cabide personalizado foi salvo no carrinho.</p>
+        </div>
+      </div>
+      <button class="icon-btn" id="miniCartCloseBtn" aria-label="Fechar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </header>
+
+    <div class="mini-cart-body">
+      <!-- Card do produto recém adicionado -->
+      <article class="mini-cart-product" id="miniCartProduct">
+        <div class="mini-cart-product-preview">
+          <canvas id="miniCartCanvas"></canvas>
+        </div>
+        <div class="mini-cart-product-info">
+          <p class="mini-cart-eyebrow" id="miniCartCategory">Adulto</p>
+          <h3 id="miniCartModel">Modelo 1 — Tradicional</h3>
+
+          <ul class="mini-cart-specs" id="miniCartSpecs"></ul>
+
+          <div class="mini-cart-qty-row">
+            <div class="qty-control mini-qty">
+              <button data-mini-act="dec" aria-label="Diminuir">−</button>
+              <span id="miniCartQty">1</span>
+              <button data-mini-act="inc" aria-label="Aumentar">+</button>
+            </div>
+            <div class="mini-cart-price" id="miniCartPrice">R$ 89,00</div>
+          </div>
+        </div>
+      </article>
+
+      <!-- Resumo do carrinho -->
+      <div class="mini-cart-summary">
+        <div class="mini-cart-summary-row">
+          <span>Itens na sacola</span>
+          <strong id="miniCartItemsCount">1</strong>
+        </div>
+        <div class="mini-cart-summary-row total">
+          <span>Subtotal</span>
+          <strong id="miniCartSubtotal">R$ 89,00</strong>
+        </div>
+        <p class="mini-cart-shipping-note" id="miniCartShipNote">Frete grátis acima de R$ 200,00</p>
+      </div>
+    </div>
+
+    <footer class="mini-cart-foot">
+      <button class="btn btn-primary btn-block" id="miniCartCheckoutBtn">
+        <span>Finalizar pedido</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+      </button>
+      <button class="btn btn-outline btn-block" id="miniCartAnotherBtn">Personalizar outro cabide</button>
+      <button class="btn btn-text btn-block" id="miniCartViewCartBtn">Ver sacola completa</button>
     </footer>
   </aside>
 
@@ -152,7 +218,7 @@
         <div class="wizard-content">
           <div class="wizard-steps" id="wizardSteps">
 
-            <!-- STEP 1: MODELO — Adulto + Infantil em grupos -->
+            <!-- STEP 1: MODELO -->
             <section class="wizard-step" data-step="1">
               <p class="step-eyebrow">Passo 01 · Modelo</p>
               <h2 id="wizardTitle" class="step-title">Escolha o cabide</h2>
@@ -160,7 +226,7 @@
               <div class="model-options" id="modelOptions"></div>
             </section>
 
-            <!-- STEP 2: COR — fotos reais (sem tint) -->
+            <!-- STEP 2: COR -->
             <section class="wizard-step" data-step="2">
               <p class="step-eyebrow">Passo 02 · Acabamento</p>
               <h2 class="step-title">Selecione a cor da madeira</h2>
@@ -221,14 +287,40 @@
                 </div>
 
                 <div class="logo-editor hidden" id="logoEditor">
-                  <div class="logo-modes" id="logoModes">
-                    <button class="mode-btn active" data-mode="laser"><span class="mode-dot mode-laser"></span><span>Laser Engraving</span></button>
-                    <button class="mode-btn" data-mode="silk"><span class="mode-dot mode-silk"></span><span>Silk Print</span></button>
-                    <button class="mode-btn" data-mode="deboss"><span class="mode-dot mode-deboss"></span><span>Debossed</span></button>
-                    <button class="mode-btn" data-mode="gold"><span class="mode-dot mode-gold"></span><span>Gold Stamp</span></button>
+                  <div class="logo-modes logo-modes-2" id="logoModes" role="tablist" aria-label="Tipo de aplicação da logo">
+                    <button class="mode-btn active" data-mode="laser" role="tab" aria-selected="true">
+                      <span class="mode-dot mode-laser"></span>
+                      <span class="mode-text">
+                        <span class="mode-title">Laser</span>
+                        <span class="mode-sub">Gravação na madeira</span>
+                      </span>
+                    </button>
+                    <button class="mode-btn" data-mode="silk" role="tab" aria-selected="false">
+                      <span class="mode-dot mode-silk"></span>
+                      <span class="mode-text">
+                        <span class="mode-title">Silk</span>
+                        <span class="mode-sub">Impressão colorida</span>
+                      </span>
+                    </button>
                   </div>
+
+                  <div class="laser-color-row" id="silkColorRow">
+                    <label class="laser-color-label">Cor da impressão</label>
+                    <div class="laser-swatches" id="silkSwatches">
+                      <button type="button" class="laser-swatch active" data-color="#1a0e07" style="--c:#1a0e07" aria-label="Preto"></button>
+                      <button type="button" class="laser-swatch" data-color="#ffffff" style="--c:#ffffff" aria-label="Branco"></button>
+                      <button type="button" class="laser-swatch" data-color="#b8895a" style="--c:#b8895a" aria-label="Caramelo"></button>
+                      <button type="button" class="laser-swatch" data-color="#c9a86a" style="--c:#c9a86a" aria-label="Dourado"></button>
+                      <button type="button" class="laser-swatch" data-color="#b91c1c" style="--c:#b91c1c" aria-label="Vermelho"></button>
+                      <label class="laser-swatch laser-swatch-custom" title="Cor personalizada">
+                        <input type="color" id="ctrlSilkColor" value="#1a0e07" />
+                        <span class="laser-swatch-custom-icon">+</span>
+                      </label>
+                    </div>
+                  </div>
+
                   <div class="slider-row"><label>Tamanho<span id="valScale">22%</span></label><input type="range" id="ctrlScale" min="6" max="60" step="1" value="22" /></div>
-                  <div class="slider-row"><label>Opacidade<span id="valOpacity">85%</span></label><input type="range" id="ctrlOpacity" min="15" max="100" step="1" value="85" /></div>
+                  <div class="slider-row" id="opacityRow"><label>Opacidade<span id="valOpacity">85%</span></label><input type="range" id="ctrlOpacity" min="15" max="100" step="1" value="85" /></div>
                   <div class="slider-row"><label>Posição horizontal<span id="valX">0</span></label><input type="range" id="ctrlX" min="-50" max="50" step="1" value="0" /></div>
                   <div class="slider-row"><label>Posição vertical<span id="valY">+5</span></label><input type="range" id="ctrlY" min="-50" max="50" step="1" value="5" /></div>
                   <div class="slider-row"><label>Rotação<span id="valRot">0°</span></label><input type="range" id="ctrlRot" min="-20" max="20" step="1" value="0" /></div>
@@ -258,7 +350,6 @@
                 <h3>Sua configuração</h3>
                 <ul id="summaryList"></ul>
                 <div class="summary-total"><span>Total</span><strong id="summaryTotal">R$ 89,00</strong></div>
-                <button class="btn btn-primary btn-block" id="addCartBtn">Adicionar ao carrinho</button>
               </div>
             </section>
 

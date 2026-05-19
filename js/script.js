@@ -1,12 +1,11 @@
 /* =========================================================
-   Cabides Premium — Configurador v3 (Vanilla JS)
+   Cabides Premium — Configurador v4 (Vanilla JS)
    ---------------------------------------------------------
-   REFATORAÇÃO:
-   - Sem tint procedural / sem overlay de cor / sem filtros.
-   - Cada combinação (categoria + modelo + cor) carrega
-     uma FOTO REAL específica do cabide.
-   - Mapeamento centralizado em hangerImages.
-   - Mantém wizard, gancho, acessórios, logo, carrinho e checkout.
+   Inclui novo fluxo pós Add-to-Cart:
+   - Mini Cart Drawer premium (lateral)
+   - openMiniCart() / closeMiniCart()
+   - resetCustomizer()
+   - Ações Editar e Duplicar nos itens do carrinho
    ========================================================= */
 
 /* ---------- CATEGORIAS / MODELOS / CORES ---------- */
@@ -38,7 +37,6 @@ const COLORS = [
 ];
 
 /* ----------- MAPEAMENTO CENTRALIZADO DE IMAGENS ----------- */
-/* Estrutura: hangerImages[category][modelNumber][colorId] = "./assets/..." */
 const hangerImages = (() => {
    const map = { adulto: {}, infantil: {} };
    for (const cat of ["adulto", "infantil"]) {
@@ -62,24 +60,24 @@ function getBaseImage(category, modelNumber) {
   return hangerImages[category][modelNumber].tradicional;
 }
 
-/* ---------- GANCHOS / ACESSÓRIOS / METAIS (mantidos) ---------- */
+/* ---------- GANCHOS / ACESSÓRIOS / METAIS ---------- */
 const HOOKS = [
   { id: "classico", name: "Clássico", sub: "Linhas curvas",      image: "./assets/hooks/hook-classico.png", priceDelta: 0  },
   { id: "imperial", name: "Imperial", sub: "Base esculpida",     image: "./assets/hooks/hook-imperial.png", priceDelta: 12 },
   { id: "slim",     name: "Slim",     sub: "Perfil minimalista", image: "./assets/hooks/hook-classico.png", priceDelta: 8, slim: true },
 ];
 
-const ACCESSORY_SVG = {
-  simple: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 40"><rect x="10" y="14" width="580" height="12" rx="6" fill="#cfcfcf"/><rect x="10" y="14" width="580" height="3" rx="1.5" fill="#ffffff" opacity=".55"/><circle cx="20" cy="20" r="6" fill="#a8a8a8"/><circle cx="580" cy="20" r="6" fill="#a8a8a8"/></svg>`,
-  clips: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 60"><rect x="10" y="22" width="580" height="10" rx="5" fill="#cfcfcf"/><rect x="10" y="22" width="580" height="2.5" rx="1.25" fill="#fff" opacity=".5"/>${[120,300,480].map(x=>`<g><rect x="${x-18}" y="14" width="36" height="32" rx="6" fill="#bdbdbd"/><rect x="${x-14}" y="18" width="28" height="6" rx="3" fill="#ededed"/></g>`).join("")}<circle cx="20" cy="27" r="6" fill="#a8a8a8"/><circle cx="580" cy="27" r="6" fill="#a8a8a8"/></svg>`,
-  retractable: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 44"><rect x="40" y="16" width="520" height="12" rx="6" fill="#cfcfcf"/><rect x="100" y="18" width="400" height="8" rx="4" fill="#e3e3e3"/><rect x="40" y="16" width="520" height="3" rx="1.5" fill="#fff" opacity=".55"/><rect x="30" y="10" width="20" height="24" rx="4" fill="#a8a8a8"/><rect x="550" y="10" width="20" height="24" rx="4" fill="#a8a8a8"/><path d="M70 22h12M518 22h12" stroke="#7a7a7a" stroke-width="2" stroke-linecap="round"/></svg>`,
+/* ----------- BARRAS METÁLICAS REAIS (imagens) ----------- */
+const hangerBars = {
+  simple:      "./assets/hanger-bars/barra-metalica.png",
+  clips:       "./assets/hanger-bars/barra-metalica-com-presilha.png",
+  retractable: "./assets/hanger-bars/barra-metalica-retratil.png",
 };
-const accessoryDataUrl = (svg) => "data:image/svg+xml;utf8," + encodeURIComponent(svg);
 const ACCESSORIES = [
-  { id: "none",        name: "Sem barra",            sub: "Apenas o cabide",   priceDelta: 0,  image: null },
-  { id: "simple",      name: "Barra metálica",       sub: "Linha minimalista", priceDelta: 18, image: accessoryDataUrl(ACCESSORY_SVG.simple),      widthFactor: 0.96, heightFactor: 0.075 },
-  { id: "clips",       name: "Barra com presilhas", sub: "3 presilhas móveis", priceDelta: 28, image: accessoryDataUrl(ACCESSORY_SVG.clips),       widthFactor: 0.96, heightFactor: 0.11  },
-  { id: "retractable", name: "Barra retrátil",      sub: "Expansiva premium",  priceDelta: 36, image: accessoryDataUrl(ACCESSORY_SVG.retractable), widthFactor: 0.96, heightFactor: 0.085 },
+  { id: "none",        name: "Sem barra",           sub: "Apenas o cabide",   priceDelta: 0,  image: null },
+  { id: "simple",      name: "Barra metálica",      sub: "Linha minimalista", priceDelta: 18, image: hangerBars.simple,      widthFactor: 1.0 },
+  { id: "clips",       name: "Barra com presilhas", sub: "3 presilhas móveis", priceDelta: 28, image: hangerBars.clips,       widthFactor: 1.0 },
+  { id: "retractable", name: "Barra retrátil",      sub: "Expansiva premium",  priceDelta: 36, image: hangerBars.retractable, widthFactor: 1.0 },
 ];
 
 const METAL_COLORS = [
@@ -91,16 +89,17 @@ const METAL_COLORS = [
 /* ----------- STATE GLOBAL ----------- */
 const configuratorState = {
   currentStep: 1,
-  category: "adulto",        // adulto | infantil
-  modelNumber: 1,            // 1..4
-  color: "tradicional",      // tradicional | claro | nogueira | ebano
+  category: "adulto",
+  modelNumber: 1,
+  color: "tradicional",
   hookModel: "classico",
   metalColor: "silver",
   bottomAccessory: "none",
   logo: {
     image: null, dataUrl: null, name: null,
     scale: 0.22, opacity: 0.85, xOff: 0, yOff: 0.05, rotation: 0,
-    effect: "laser", isEditing: false, isSaved: false, savedSnapshot: null,
+    effect: "laser", silkColor: "#1a0e07",
+    isEditing: false, isSaved: false, savedSnapshot: null,
   },
 };
 
@@ -108,6 +107,11 @@ const logoState = new Proxy(configuratorState.logo, {
   get(t, k) { return k === "mode" ? t.effect : t[k]; },
   set(t, k, v) { if (k === "mode") t.effect = v; else t[k] = v; return true; },
 });
+
+/* Estado resumido do mini-cart (último item adicionado) */
+const cartSummaryState = {
+  lastAddedId: null,
+};
 
 /* ----------- HELPERS ----------- */
 const $  = (sel, root = document) => root.querySelector(sel);
@@ -140,7 +144,7 @@ function loadImage(src) {
     const img = new Image();
     img.decoding = "async";
     img.onload = () => resolve(img);
-    img.onerror = (e) => reject(new Error("Falha ao carregar " + src));
+    img.onerror = () => reject(new Error("Falha ao carregar " + src));
     img.src = src;
   });
   IMG_CACHE.set(src, p);
@@ -175,7 +179,7 @@ function getOpaqueBBox(img) {
 }
 
 /* =========================================================
-   RENDER ENGINE — apenas DESENHA a imagem real (sem tint)
+   RENDER ENGINE
    ========================================================= */
 const canvas = $("#hangerCanvas");
 const ctx = canvas.getContext("2d");
@@ -199,7 +203,6 @@ function fitHangerLayer(baseImg, targetW, targetH) {
   return { dx, dy, dw, dh };
 }
 
-/* Tinge metal usando multiply — só afeta gancho/acessório, não o cabide. */
 function applyMetalTint(srcImg, w, h, metal) {
   const c = document.createElement("canvas");
   c.width = Math.max(1, Math.round(w));
@@ -224,7 +227,7 @@ function drawHookOnTop(targetCtx, hookImg, baseImg, hangerBox, hook, metal) {
   const hangerTopY = hangerBox.dy + bbox.y * scale;
   const hangerCenterX = hangerBox.dx + (bbox.x + bbox.w / 2) * scale;
   const hangerVisibleH = bbox.h * scale;
-  const hookH = hangerVisibleH * (hook.slim ? 0.588 : 0.672); // +40% (1.4x) — somente preview principal; proporção preservada
+  const hookH = hangerVisibleH * (hook.slim ? 0.588 : 0.672);
   const hookScale = hookH / hookImg.naturalHeight;
   const hookW = hookImg.naturalWidth * hookScale * (hook.slim ? 0.7 : 1);
   const overlap = hookH * 0.06;
@@ -245,11 +248,13 @@ function drawAccessoryOnBottom(targetCtx, accImg, baseImg, hangerBox, accessory,
   const hangerTop  = hangerBox.dy + bbox.y * scale;
   const hangerW    = bbox.w * scale;
   const hangerH    = bbox.h * scale;
-  const accW = hangerW * (accessory.widthFactor || 0.96);
+  // Barra ocupa toda a largura do cabide (ponta a ponta), preservando proporção real da imagem
+  const accW = hangerW * (accessory.widthFactor || 1.0);
   const aspect = accImg.naturalHeight / accImg.naturalWidth;
-  const accH = Math.max(hangerH * (accessory.heightFactor || 0.08), accW * aspect);
+  const accH = accW * aspect;
   const ax = hangerLeft + (hangerW - accW) / 2;
-  const ay = hangerTop + hangerH - accH * 0.55;
+  // Ancora a barra logo abaixo da base do cabide, com leve sobreposição para parecer encaixada
+  const ay = hangerTop + hangerH - accH * 0.5;
   const tinted = applyMetalTint(accImg, accW, accH, metal);
   targetCtx.save();
   targetCtx.shadowColor = "rgba(20,14,8,0.18)";
@@ -259,7 +264,7 @@ function drawAccessoryOnBottom(targetCtx, accImg, baseImg, hangerBox, accessory,
   targetCtx.restore();
 }
 
-/* ---------- LOGO RENDER (preservado) ---------- */
+/* ---------- LOGO RENDER ---------- */
 function makeSilhouette(img, w, h, color) {
   const c = document.createElement("canvas");
   c.width = Math.max(1, Math.round(w));
@@ -295,52 +300,25 @@ function drawLogoVariant(targetCtx, baseImg, hangerBox, logoImg, logoCfg, isDark
   const mode = logoCfg.effect || logoCfg.mode;
   switch (mode) {
     case "silk": {
+      // Silk: silhueta tingida com a cor escolhida + opacidade
+      const color = logoCfg.silkColor || "#1a0e07";
+      const tinted = makeSilhouette(logoImg, logoW, logoH, color);
       targetCtx.globalAlpha = logoCfg.opacity;
-      targetCtx.globalCompositeOperation = "multiply";
-      targetCtx.drawImage(logoImg, x, y, logoW, logoH);
       targetCtx.globalCompositeOperation = "source-over";
-      targetCtx.globalAlpha = logoCfg.opacity * 0.25;
-      targetCtx.drawImage(logoImg, x, y, logoW, logoH);
-      break;
-    }
-    case "deboss": {
-      const highlight = makeSilhouette(logoImg, logoW, logoH, "#ffffff");
-      const shadow    = makeSilhouette(logoImg, logoW, logoH, "#1a0e07");
-      const op = logoCfg.opacity, d = Math.max(1, logoW * 0.006);
-      targetCtx.globalCompositeOperation = "overlay";
-      targetCtx.globalAlpha = op * 0.55;
-      targetCtx.drawImage(highlight, x + d, y + d);
-      targetCtx.globalCompositeOperation = "multiply";
-      targetCtx.globalAlpha = op * 0.85;
-      targetCtx.drawImage(shadow, x - d, y - d);
-      targetCtx.globalCompositeOperation = "multiply";
-      targetCtx.globalAlpha = op * 0.35;
-      targetCtx.drawImage(shadow, x, y);
-      break;
-    }
-    case "gold": {
-      const gold = makeSilhouette(logoImg, logoW, logoH, "#d9a441");
-      targetCtx.globalCompositeOperation = "source-over";
-      targetCtx.shadowColor = "rgba(120, 70, 10, 0.45)";
-      targetCtx.shadowBlur = Math.max(2, logoW * 0.015);
-      targetCtx.shadowOffsetY = Math.max(1, logoW * 0.004);
-      targetCtx.globalAlpha = logoCfg.opacity;
-      targetCtx.drawImage(gold, x, y);
-      targetCtx.shadowColor = "transparent";
-      targetCtx.globalCompositeOperation = "overlay";
-      targetCtx.globalAlpha = logoCfg.opacity * 0.55;
-      targetCtx.drawImage(makeSilhouette(logoImg, logoW, logoH, "#fff1c2"), x, y);
+      targetCtx.drawImage(tinted, x, y);
       break;
     }
     case "laser":
     default: {
-      const burnColor = isDark ? "#e0c79a" : "#2c170a";
-      const burn = makeSilhouette(logoImg, logoW, logoH, burnColor);
+      // Laser: cor automática (clara em madeira escura, escura em madeira clara)
+      const color = isDark ? "#e0c79a" : "#1a0e07";
+      const burn  = makeSilhouette(logoImg, logoW, logoH, color);
       targetCtx.globalCompositeOperation = isDark ? "screen" : "multiply";
-      targetCtx.globalAlpha = logoCfg.opacity;
+      targetCtx.globalAlpha = 1;
       targetCtx.drawImage(burn, x, y);
+      // Sombra interna sutil para sensação de gravação
       targetCtx.globalCompositeOperation = "multiply";
-      targetCtx.globalAlpha = logoCfg.opacity * 0.25;
+      targetCtx.globalAlpha = 0.25;
       targetCtx.drawImage(burn, x, y + Math.max(1, logoW * 0.003));
       break;
     }
@@ -361,7 +339,6 @@ async function render() {
   const hook = getHook();
   const accessory = getAccessory();
   const metal = getMetal();
-  const color = getColor();
 
   const wrap = $("#hangerWrap");
   wrap.classList.add("swapping");
@@ -383,13 +360,12 @@ async function render() {
     const fit = fitHangerLayer(baseImg, w, h);
     const hangerBox = { ...fit };
 
-    // 1) Imagem REAL do cabide (cor já é a foto)
-    ctx.drawImage(baseImg, fit.dx, fit.dy, fit.dw, fit.dh);
-    // 2) Logo
-    const logoFrame = drawLogoOnCanvas(ctx, baseImg, hangerBox);
-    // 3) Acessório
+    // Ordem de profundidade (z-order):
+    // 1) Barra metálica (fundo)  → 2) Cabide (cobre as pontas da barra)
+    // 3) Logo (sobre a madeira)  → 4) Gancho (topo)
     if (accImg) drawAccessoryOnBottom(ctx, accImg, baseImg, hangerBox, accessory, metal);
-    // 4) Gancho
+    ctx.drawImage(baseImg, fit.dx, fit.dy, fit.dw, fit.dh);
+    const logoFrame = drawLogoOnCanvas(ctx, baseImg, hangerBox);
     drawHookOnTop(ctx, hookImg, baseImg, hangerBox, hook, metal);
 
     const bbox = getOpaqueBBox(baseImg);
@@ -406,7 +382,6 @@ async function render() {
   } catch (err) {
     console.warn("Render falhou:", err);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    // fallback discreto
     ctx.fillStyle = "#efeae2";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   } finally {
@@ -415,7 +390,7 @@ async function render() {
 }
 
 /* =========================================================
-   OVERLAY EDITOR DA LOGO (preservado)
+   OVERLAY EDITOR DA LOGO
    ========================================================= */
 const overlay = $("#logoOverlay");
 const logoBox = $("#logoBox");
@@ -496,7 +471,24 @@ function syncControlsFromState() {
   $("#valY").textContent       = `${Math.round(logoState.yOff * 100)}`;
   $("#ctrlRot").value     = Math.round(logoState.rotation);
   $("#valRot").textContent     = `${Math.round(logoState.rotation)}°`;
-  $$("#logoModes .mode-btn").forEach((b) => b.classList.toggle("active", b.dataset.mode === logoState.effect));
+  $$("#logoModes .mode-btn").forEach((b) => {
+    const active = b.dataset.mode === logoState.effect;
+    b.classList.toggle("active", active);
+    b.setAttribute("aria-selected", active ? "true" : "false");
+  });
+  // Cor do silk
+  const colorInput = $("#ctrlSilkColor");
+  if (colorInput) colorInput.value = logoState.silkColor || "#1a0e07";
+  $$("#silkSwatches .laser-swatch").forEach((s) => {
+    if (!s.dataset.color) return;
+    s.classList.toggle("active", s.dataset.color.toLowerCase() === (logoState.silkColor || "").toLowerCase());
+  });
+  // Mostrar/ocultar controles por modo
+  const isSilk = logoState.effect === "silk";
+  const colorRow = $("#silkColorRow");
+  const opacityRow = $("#opacityRow");
+  if (colorRow)   colorRow.classList.toggle("hidden", !isSilk);
+  if (opacityRow) opacityRow.classList.toggle("hidden", !isSilk);
 }
 
 function setupControls() {
@@ -521,13 +513,28 @@ function setupControls() {
     syncControlsFromState();
     render();
   });
+
+  // Swatches de cor do silk
+  const sw = $("#silkSwatches");
+  if (sw) {
+    sw.addEventListener("click", (e) => {
+      const b = e.target.closest(".laser-swatch[data-color]"); if (!b) return;
+      logoState.silkColor = b.dataset.color;
+      syncControlsFromState(); render();
+    });
+  }
+  const colorInput = $("#ctrlSilkColor");
+  if (colorInput) {
+    colorInput.addEventListener("input", () => {
+      logoState.silkColor = colorInput.value;
+      syncControlsFromState(); render();
+    });
+  }
 }
 
 /* =========================================================
    UI BUILDERS
    ========================================================= */
-
-/* Step 1 — duas seções (Adulto / Infantil), 4 modelos cada */
 function buildModelOptions() {
   const root = $("#modelOptions");
   const renderGroup = (catId) => {
@@ -557,7 +564,6 @@ function buildModelOptions() {
   root.innerHTML = renderGroup("adulto") + renderGroup("infantil");
 }
 
-/* Step 2 — apenas 4 cores reais (swap de imagem) */
 function buildColorOptions() {
   const root = $("#colorOptions");
   root.innerHTML = COLORS.map((c) => {
@@ -627,7 +633,6 @@ function shade(hex, percent) {
 function buildModelsGrid() {
   const grid = $("#modelsGrid");
   if (!grid) return;
-  // Mostra 4 destaques: adulto 1..4
   grid.innerHTML = [1,2,3,4].map((n) => {
     const info = MODEL_INFO.adulto[n];
     const img = getBaseImage("adulto", n);
@@ -650,7 +655,6 @@ function buildModelsGrid() {
   });
 }
 
-/* ---------- delegação de cliques ---------- */
 function setupOptionGridHandlers() {
   $("#modelOptions").addEventListener("click", (e) => {
     const btn = e.target.closest(".option"); if (!btn) return;
@@ -678,7 +682,6 @@ function setupOptionGridHandlers() {
   });
 }
 
-/* ---------- refresh ---------- */
 function refreshActive() {
   $$("#modelOptions .option").forEach((el) => {
     const active = el.dataset.cat === configuratorState.category
@@ -690,6 +693,7 @@ function refreshActive() {
   $$("#accessoryOptions .option").forEach((el) => el.classList.toggle("active", el.dataset.id === configuratorState.bottomAccessory));
   $$("#metalOptions .option").forEach((el) => el.classList.toggle("active", el.dataset.id === configuratorState.metalColor));
 }
+
 function refreshSummary() {
   const info = getModelInfo(), color = getColor(), h = getHook(), a = getAccessory(), me = getMetal(), cat = getCategory();
   const total = computeTotal();
@@ -705,13 +709,14 @@ function refreshSummary() {
     <li><span>Cor metálica</span><strong>${me.name}</strong></li>
     <li><span>Logo</span><strong>${logoState.image ? `Personalizada · ${labelForMode(logoState.effect)}` : "Sem logo"}</strong></li>`;
 }
+
 function labelForMode(m) {
-  return { laser: "Laser", silk: "Silk", deboss: "Debossed", gold: "Gold Stamp" }[m] || m;
+  return { laser: "Laser", silk: "Silk" }[m] || "Laser";
 }
 function refresh() { refreshActive(); refreshSummary(); render(); }
 
 /* =========================================================
-   LOGO UPLOADER (preservado)
+   LOGO UPLOADER
    ========================================================= */
 function setupLogoUploader() {
   const input   = $("#logoInput");
@@ -732,6 +737,7 @@ function setupLogoUploader() {
     scale: logoState.scale, opacity: logoState.opacity,
     xOff: logoState.xOff, yOff: logoState.yOff,
     rotation: logoState.rotation, effect: logoState.effect,
+    silkColor: logoState.silkColor,
   });
   const restore = (s) => { if (s) Object.assign(configuratorState.logo, s); };
 
@@ -789,7 +795,8 @@ function setupLogoUploader() {
         configuratorState.logo.dataUrl = reader.result;
         configuratorState.logo.name = file.name;
         Object.assign(configuratorState.logo, {
-          scale: 0.22, opacity: 0.85, xOff: 0, yOff: 0.05, rotation: 0, effect: "laser",
+          scale: 0.22, opacity: 0.85, xOff: 0, yOff: 0.05, rotation: 0,
+          effect: "laser", silkColor: "#1a0e07",
           isEditing: true, isSaved: false, savedSnapshot: null,
         });
         thumb.src = reader.result; nameEl.textContent = file.name;
@@ -857,6 +864,7 @@ function serializeConfig() {
       scale: logoState.scale, opacity: logoState.opacity,
       xOff: logoState.xOff, yOff: logoState.yOff,
       rotation: logoState.rotation, effect: logoState.effect,
+      silkColor: logoState.silkColor || "#1a0e07",
     };
   }
   return cfg;
@@ -881,11 +889,14 @@ function restoreConfig(cfg) {
   if (cfg.logo) {
     const img = new Image();
     img.onload = () => {
+      // Normaliza efeitos legados (deboss/gold → laser)
+      const rawEffect = cfg.logo.effect || "laser";
+      const effect = (rawEffect === "silk") ? "silk" : "laser";
       Object.assign(configuratorState.logo, {
         image: img, dataUrl: cfg.logo.dataUrl, name: cfg.logo.name || "logo.png",
         scale: cfg.logo.scale, opacity: cfg.logo.opacity,
         xOff: cfg.logo.xOff, yOff: cfg.logo.yOff, rotation: cfg.logo.rotation,
-        effect: cfg.logo.effect || "laser",
+        effect, silkColor: cfg.logo.silkColor || "#1a0e07",
         isEditing: false, isSaved: true, savedSnapshot: null,
       });
       $("#logoThumb").src = cfg.logo.dataUrl;
@@ -915,7 +926,7 @@ function resetConfigurator() {
   Object.assign(configuratorState.logo, {
     image: null, dataUrl: null, name: null,
     scale: 0.22, opacity: 0.85, xOff: 0, yOff: 0.05,
-    rotation: 0, effect: "laser",
+    rotation: 0, effect: "laser", silkColor: "#1a0e07",
     isEditing: false, isSaved: false, savedSnapshot: null,
   });
   const input = $("#logoInput"); if (input) input.value = "";
@@ -925,42 +936,75 @@ function resetConfigurator() {
   buildColorOptions();
   refresh();
 }
+/* Alias semântico solicitado */
+const resetCustomizer = resetConfigurator;
 
 /* ---------- mini-render p/ carrinho ---------- */
-async function renderItemPreview(canvasEl, cfg) {
+// Pinta a composição completa (cabide + acessório + logo + gancho)
+// num ctx 2d com dimensões w × h. Reaproveitado pelo preview e snapshot.
+async function paintConfigOnContext(c, w, h, cfg) {
+  c.imageSmoothingEnabled = true;
+  c.imageSmoothingQuality = "high";
+
   const hook = findById(HOOKS, cfg.hookModel);
   const accessory = findById(ACCESSORIES, cfg.bottomAccessory || "none");
   const metal = findById(METAL_COLORS, cfg.metalColor || "silver");
   const hangerSrc = getHangerImage(cfg.category, cfg.modelNumber, cfg.color);
 
+  const [baseImg, hookImg, accImg, logoImg] = await Promise.all([
+    loadImage(hangerSrc),
+    loadImage(hook.image),
+    accessory.image ? loadImage(accessory.image) : Promise.resolve(null),
+    cfg.logo ? loadImage(cfg.logo.dataUrl) : Promise.resolve(null),
+  ]);
+
+  const fit = fitHangerLayer(baseImg, w, h);
+  const hangerBox = { ...fit };
+  const colorObj = findById(COLORS, cfg.color);
+
+  if (accImg) drawAccessoryOnBottom(c, accImg, baseImg, hangerBox, accessory, metal);
+  c.drawImage(baseImg, fit.dx, fit.dy, fit.dw, fit.dh);
+  if (logoImg) drawLogoVariant(c, baseImg, hangerBox, logoImg, cfg.logo, colorObj.isDark);
+  drawHookOnTop(c, hookImg, baseImg, hangerBox, hook, metal);
+}
+
+async function renderItemPreview(canvasEl, cfg) {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const rect = canvasEl.getBoundingClientRect();
   const w = Math.max(1, Math.round(rect.width * dpr));
   const h = Math.max(1, Math.round(rect.height * dpr));
-  if (canvasEl.width !== w || canvasEl.height !== h) { canvasEl.width = w; canvasEl.height = h; }
+  if (canvasEl.width !== w || canvasEl.height !== h) {
+    canvasEl.width = w; canvasEl.height = h;
+  }
   const c = canvasEl.getContext("2d");
   c.clearRect(0, 0, w, h);
-  c.imageSmoothingEnabled = true; c.imageSmoothingQuality = "high";
+  try { await paintConfigOnContext(c, w, h, cfg); }
+  catch { c.fillStyle = "#efeae2"; c.fillRect(0, 0, w, h); }
+}
 
+/* ---------------------------------------------------------
+   Snapshot de alta resolução do produto configurado.
+   Gerado UMA vez ao adicionar/editar item — salvo no carrinho
+   como dataURL e exibido nas thumbs (mini cart, sacola, checkout).
+--------------------------------------------------------- */
+async function generateItemSnapshot(cfg, size = 900) {
+  const cv = document.createElement("canvas");
+  cv.width = size;
+  cv.height = size;
+  const c = cv.getContext("2d");
+  // fundo neutro premium (combina com a moldura branca das thumbs)
+  c.fillStyle = "#ffffff";
+  c.fillRect(0, 0, size, size);
   try {
-    const [baseImg, hookImg, accImg, logoImg] = await Promise.all([
-      loadImage(hangerSrc), loadImage(hook.image),
-      accessory.image ? loadImage(accessory.image) : Promise.resolve(null),
-      cfg.logo ? loadImage(cfg.logo.dataUrl) : Promise.resolve(null),
-    ]);
-    const fit = fitHangerLayer(baseImg, w, h);
-    c.drawImage(baseImg, fit.dx, fit.dy, fit.dw, fit.dh);
-    const hangerBox = { ...fit };
-    const colorObj = findById(COLORS, cfg.color);
-    if (logoImg) drawLogoVariant(c, baseImg, hangerBox, logoImg, cfg.logo, colorObj.isDark);
-    if (accImg) drawAccessoryOnBottom(c, accImg, baseImg, hangerBox, accessory, metal);
-    drawHookOnTop(c, hookImg, baseImg, hangerBox, hook, metal);
-  } catch {
-    c.fillStyle = "#efeae2"; c.fillRect(0, 0, w, h);
+    await paintConfigOnContext(c, size, size, cfg);
+    return cv.toDataURL("image/png");
+  } catch (e) {
+    console.warn("Falha ao gerar snapshot do item:", e);
+    return null;
   }
 }
 
-/* ---------- cart UI ---------- */
+/* ---------- cart UI (drawer completo) ---------- */
 const cartCount = () => cartState.items.reduce((s, it) => s + it.quantity, 0);
 const cartSubtotal = () => cartState.items.reduce((s, it) => s + it.unitPrice * it.quantity, 0);
 
@@ -985,9 +1029,12 @@ function renderCart() {
     const a = findById(ACCESSORIES, it.bottomAccessory || "none");
     const me = findById(METAL_COLORS, it.metalColor || "silver");
     const subtotal = it.unitPrice * it.quantity;
+    const thumb = it.previewImage
+      ? `<img src="${it.previewImage}" alt="${info.name}" loading="lazy" />`
+      : `<canvas data-preview="${it.id}"></canvas>`;
     return `
       <li class="cart-item ${cartState.editingId === it.id ? "editing" : ""}" data-id="${it.id}">
-        <div class="cart-item-thumb"><canvas data-preview="${it.id}"></canvas></div>
+        <div class="cart-item-thumb">${thumb}</div>
         <div class="cart-item-body">
           <div class="cart-item-title"><strong>${info.name}</strong><span class="price">${fmtBRL(subtotal)}</span></div>
           <div class="cart-item-meta">
@@ -1003,6 +1050,7 @@ function renderCart() {
             </div>
             <div class="cart-item-links">
               <button data-act="edit">Editar</button>
+              <button class="link-duplicate" data-act="duplicate">Duplicar</button>
               <button class="danger" data-act="remove">Remover</button>
             </div>
           </div>
@@ -1015,7 +1063,9 @@ function renderCart() {
   $("#cartSubtotal").textContent = fmtBRL(sub);
   $("#cartShipping").textContent = shipping === 0 ? "Grátis" : fmtBRL(shipping);
   $("#cartTotal").textContent = fmtBRL(sub + shipping);
+  // Fallback: itens antigos (sem previewImage) ainda renderizam via canvas
   cartState.items.forEach((it) => {
+    if (it.previewImage) return;
     const cv = list.querySelector(`canvas[data-preview="${it.id}"]`);
     if (cv) renderItemPreview(cv, it);
   });
@@ -1037,39 +1087,193 @@ function closeCart() {
   setTimeout(() => { $("#cartDrawer").hidden = true; $("#drawerBackdrop").hidden = true; }, 360);
 }
 
+/* =========================================================
+   MINI CART DRAWER — pós Add-to-Cart premium
+   ========================================================= */
+function openMiniCart(itemId) {
+  cartSummaryState.lastAddedId = itemId;
+  const drawer = $("#miniCartDrawer");
+  const backdrop = $("#miniCartBackdrop");
+  drawer.hidden = false;
+  backdrop.hidden = false;
+  drawer.setAttribute("aria-hidden", "false");
+  document.body.style.overflow = "hidden";
+
+  renderMiniCart();
+  requestAnimationFrame(() => {
+    drawer.classList.add("open");
+    backdrop.classList.add("open");
+  });
+}
+
+function closeMiniCart() {
+  const drawer = $("#miniCartDrawer");
+  const backdrop = $("#miniCartBackdrop");
+  drawer.classList.remove("open");
+  backdrop.classList.remove("open");
+  drawer.setAttribute("aria-hidden", "true");
+  document.body.style.overflow = "";
+  setTimeout(() => {
+    drawer.hidden = true;
+    backdrop.hidden = true;
+  }, 420);
+}
+
+function renderMiniCart() {
+  const id = cartSummaryState.lastAddedId;
+  const item = cartState.items.find((x) => x.id === id);
+  if (!item) { closeMiniCart(); return; }
+
+  const cat = findById(CATEGORIES, item.category);
+  const info = MODEL_INFO[item.category][item.modelNumber];
+  const color = findById(COLORS, item.color);
+  const hook = findById(HOOKS, item.hookModel);
+  const acc = findById(ACCESSORIES, item.bottomAccessory || "none");
+  const metal = findById(METAL_COLORS, item.metalColor || "silver");
+
+  $("#miniCartCategory").textContent = cat.name;
+  $("#miniCartModel").textContent = info.name;
+  $("#miniCartQty").textContent = String(item.quantity);
+  $("#miniCartPrice").textContent = fmtBRL(item.unitPrice * item.quantity);
+
+  const specs = [
+    `Cor: ${color.name}`,
+    `Gancho: ${hook.name}`,
+    acc.id !== "none" ? `Acessório: ${acc.name}` : null,
+    `Metal: ${metal.name}`,
+    item.logo ? `Logo · ${labelForMode(item.logo.effect)}` : "Sem logo",
+  ].filter(Boolean);
+  $("#miniCartSpecs").innerHTML = specs.map((s) => `<li>${s}</li>`).join("");
+
+  // Totais do carrinho
+  $("#miniCartItemsCount").textContent = String(cartCount());
+  const sub = cartSubtotal();
+  $("#miniCartSubtotal").textContent = fmtBRL(sub);
+  const remaining = Math.max(0, 200 - sub);
+  $("#miniCartShipNote").textContent = remaining > 0
+    ? `Faltam ${fmtBRL(remaining)} para frete grátis`
+    : `🎉 Você ganhou frete grátis`;
+
+  // Preview do item adicionado — prioriza o snapshot persistido (PNG dataURL).
+  // Se não houver (carrinho antigo), faz fallback para render ao vivo no canvas.
+  const previewWrap = document.querySelector(".mini-cart-product-preview");
+  if (previewWrap) {
+    if (item.previewImage) {
+      previewWrap.innerHTML = `<img src="${item.previewImage}" alt="${info.name}" class="mini-cart-preview-img" />`;
+    } else {
+      previewWrap.innerHTML = `<canvas id="miniCartCanvas"></canvas>`;
+      renderItemPreview(previewWrap.querySelector("canvas"), item);
+    }
+  }
+}
+
+function setupMiniCart() {
+  $("#miniCartCloseBtn").addEventListener("click", closeMiniCart);
+  $("#miniCartBackdrop").addEventListener("click", closeMiniCart);
+
+  // Personalizar outro cabide → fecha mini cart, reseta wizard, volta ao step 1
+  $("#miniCartAnotherBtn").addEventListener("click", () => {
+    closeMiniCart();
+    resetCustomizer();
+    Wizard.open(1);
+  });
+
+  // Finalizar pedido → abre checkout
+  $("#miniCartCheckoutBtn").addEventListener("click", () => {
+    window.location.href = "./checkout.html";
+  });
+
+  // Ver sacola completa
+  $("#miniCartViewCartBtn").addEventListener("click", () => {
+    closeMiniCart();
+    openCart();
+  });
+
+  // Quantidade no mini cart
+  $("#miniCartProduct").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-mini-act]"); if (!btn) return;
+    const id = cartSummaryState.lastAddedId;
+    const it = cartState.items.find((x) => x.id === id); if (!it) return;
+    const act = btn.dataset.miniAct;
+    if (act === "inc") it.quantity = Math.min(99, it.quantity + 1);
+    else if (act === "dec") it.quantity = Math.max(1, it.quantity - 1);
+    cartSave();
+    renderMiniCart();
+    renderCart();
+  });
+
+  // ESC fecha
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !$("#miniCartDrawer").hidden && $("#miniCartDrawer").classList.contains("open")) {
+      closeMiniCart();
+    }
+  });
+}
+
+/* ---------- editing banner ---------- */
 function setEditingBanner() {
-  const banner = $("#editBanner"); const btn = $("#addCartBtn");
+  const banner = $("#editBanner");
   if (cartState.editingId) {
     const it = cartState.items.find((x) => x.id === cartState.editingId);
     const info = it && MODEL_INFO[it.category]?.[it.modelNumber];
     banner.classList.remove("hidden");
     $("#editBannerSub").textContent = info ? `Item: ${info.name}` : "Ajuste e salve para atualizar.";
-    btn.textContent = "Salvar alterações";
   } else {
     banner.classList.add("hidden");
-    btn.textContent = "Adicionar ao carrinho";
   }
 }
 
-function addOrUpdateCart() {
+/* ---------- ADD / UPDATE ---------- */
+async function addOrUpdateCart() {
   const cfg = serializeConfig();
   const unitPrice = priceForConfig(cfg);
+
+  // Snapshot do preview atual — gerado APENAS aqui (não em tempo real).
+  // Persiste no item via localStorage; sobrevive a refresh/fechamento.
+  const previewImage = await generateItemSnapshot(cfg, 900);
+
   if (cartState.editingId) {
     const idx = cartState.items.findIndex((x) => x.id === cartState.editingId);
-    if (idx >= 0) cartState.items[idx] = { ...cartState.items[idx], ...cfg, unitPrice };
+    let updatedId = cartState.editingId;
+    if (idx >= 0) {
+      cartState.items[idx] = {
+        ...cartState.items[idx],
+        ...cfg,
+        unitPrice,
+        previewImage: previewImage || cartState.items[idx].previewImage || null,
+      };
+    }
     cartState.editingId = null;
     cartSave(); renderCart(); setEditingBanner(); resetConfigurator();
-    toast("Item atualizado"); openCart();
+    toast("Item atualizado");
+    Wizard.close();
+    openMiniCart(updatedId);
   } else {
-    cartState.items.push({ id: uid(), ...cfg, quantity: 1, unitPrice });
+    const newItem = { id: uid(), ...cfg, quantity: 1, unitPrice, previewImage };
+    cartState.items.push(newItem);
     cartSave(); renderCart(); resetConfigurator();
-    toast("Adicionado ao carrinho");
+    toast("Adicionado à sacola");
     const btn = $("#cartBtn");
     btn.classList.remove("pulse"); void btn.offsetWidth; btn.classList.add("pulse");
-    openCart();
+    Wizard.close();
+    openMiniCart(newItem.id);
   }
 }
 
+/* ---------- duplicate ---------- */
+function duplicateCartItem(id) {
+  const it = cartState.items.find((x) => x.id === id);
+  if (!it) return;
+  // JSON.parse(JSON.stringify(...)) copia também a previewImage (dataURL string).
+  const copy = { ...JSON.parse(JSON.stringify(it)), id: uid(), quantity: 1 };
+  cartState.items.push(copy);
+  cartSave();
+  renderCart();
+  toast("Item duplicado");
+  openMiniCart(copy.id);
+}
+
+/* ---------- setup cart ---------- */
 function setupCart() {
   cartLoad(); renderCart(); updateCartBadge(); setEditingBanner();
   $("#cartBtn").addEventListener("click", openCart);
@@ -1091,6 +1295,10 @@ function setupCart() {
     } else if (act === "edit") {
       cartState.editingId = id; restoreConfig(it); setEditingBanner();
       closeCart(); Wizard.open(1); return cartSave();
+    } else if (act === "duplicate") {
+      duplicateCartItem(id);
+      cartSave(); renderCart();
+      return;
     }
     cartSave(); renderCart();
   });
@@ -1114,9 +1322,9 @@ function init() {
   setupControls();
   setupEditorInteractions();
   setupCart();
+  setupMiniCart();
   Wizard.init();
 
-  $("#addCartBtn").addEventListener("click", addOrUpdateCart);
   window.addEventListener("resize", () => render());
 
   syncControlsFromState();
@@ -1125,7 +1333,7 @@ function init() {
 document.addEventListener("DOMContentLoaded", init);
 
 /* =========================================================
-   WIZARD CONTROLLER — 7 steps (preservado)
+   WIZARD CONTROLLER — 7 steps
    ========================================================= */
 const Wizard = (() => {
   const wState = { currentStep: 1, totalSteps: 7, isOpen: false, visited: new Set([1]) };
@@ -1152,7 +1360,7 @@ const Wizard = (() => {
     });
     backBtn.addEventListener("click", back);
     nextBtn.addEventListener("click", () => {
-      if (wState.currentStep === wState.totalSteps) $("#addCartBtn").click();
+      if (wState.currentStep === wState.totalSteps) addOrUpdateCart();
       else next();
     });
     progressEl.addEventListener("click", (e) => {

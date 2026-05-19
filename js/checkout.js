@@ -288,10 +288,15 @@ function render() {
     const info = MODEL_INFO[it.category]?.[it.modelNumber];
     const color = findById(COLORS, it.color);
     const hook = findById(HOOKS, it.hookModel);
+    // Prioriza snapshot persistido do produto configurado (PNG dataURL).
+    // Fallback para canvas em itens antigos sem previewImage.
+    const thumb = it.previewImage
+      ? `<img src="${it.previewImage}" alt="${info?.name || "Cabide"}" loading="lazy" />`
+      : `<canvas data-preview="${it.id}"></canvas>`;
     return `
       <div class="checkout-item">
         <div class="checkout-item-thumb">
-          <canvas data-preview="${it.id}"></canvas>
+          ${thumb}
           <span class="qty-badge">${it.quantity}</span>
         </div>
         <div class="checkout-item-info">
@@ -302,6 +307,7 @@ function render() {
       </div>`;
   }).join("");
   items.forEach((it) => {
+    if (it.previewImage) return;
     const cv = root.querySelector(`canvas[data-preview="${it.id}"]`);
     if (cv) renderItemPreview(cv, it);
   });
