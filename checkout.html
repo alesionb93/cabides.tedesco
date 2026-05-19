@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Checkout — Cabides Premium</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="./index.html" class="brand">
+        <span class="brand-mark">⌂</span>
+        <span class="brand-name">Cabides<span>Premium</span></span>
+      </a>
+      <nav class="nav">
+        <a href="./index.html">Configurador</a>
+        <a href="./index.html#models">Modelos</a>
+      </nav>
+      <div class="header-actions">
+        <a class="btn btn-ghost" href="./index.html">← Voltar</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="checkout-main">
+    <div class="container">
+      <p class="eyebrow">Finalizar pedido</p>
+      <h1 class="checkout-title">Checkout</h1>
+      <p class="checkout-sub">Revise seu pedido e complete suas informações.</p>
+
+      <div id="checkoutRoot"></div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container"><p>© 2026 Cabides Premium. Feito com cuidado artesanal.</p></div>
+  </footer>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="./js/checkout.js"></script>
+</body>
+</html>

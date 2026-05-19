@@ -1,0 +1,170 @@
+/* =========================================================
+   Cabides Premium — ADIÇÕES de design (v3 refactor)
+   Inclua DEPOIS de style.css:
+     <link rel="stylesheet" href="./css/style.css" />
+     <link rel="stylesheet" href="./css/style.additions.css" />
+   ========================================================= */
+
+/* ---------- Step 1: grupos Adulto / Infantil ---------- */
+.model-options {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.model-group {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.model-group-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.model-group-title {
+  font-family: var(--font-display, "Playfair Display", serif);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-2, #4a423c);
+}
+.model-group-line {
+  flex: 1;
+  height: 1px;
+  background: var(--line, #e7e1d8);
+}
+.model-group-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (min-width: 720px) {
+  .model-group-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+.model-option {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: var(--bg-elev, #ffffff);
+  border: 1px solid var(--line, #e7e1d8);
+  border-radius: var(--radius, 14px);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+.model-option:hover {
+  border-color: var(--accent, #b8895a);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,.05));
+}
+.model-option.active {
+  border-color: var(--brand, #2b1f17);
+  box-shadow: 0 0 0 2px var(--brand, #2b1f17) inset;
+}
+.model-option .option-thumb {
+  aspect-ratio: 1;
+  background: var(--surface, #faf8f5);
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+.model-option .option-thumb img {
+  width: 92%; height: 92%;
+  object-fit: contain;
+}
+
+/* ---------- Step 2: cor com foto real (preview) ---------- */
+.option-grid.colors {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (min-width: 720px) {
+  .option-grid.colors { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+.color-option {
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  background: var(--bg-elev, #ffffff);
+  border: 1px solid var(--line, #e7e1d8);
+  border-radius: var(--radius, 14px);
+  cursor: pointer;
+  transition: border-color 180ms ease, transform 180ms ease;
+}
+.color-option:hover { border-color: var(--accent, #b8895a); transform: translateY(-2px); }
+.color-option.active {
+  border-color: var(--brand, #2b1f17);
+  box-shadow: 0 0 0 2px var(--brand, #2b1f17) inset;
+}
+.color-thumb {
+  aspect-ratio: 1;
+  background: var(--surface, #faf8f5);
+  border-radius: 10px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+.color-thumb img {
+  width: 92%; height: 92%;
+  object-fit: contain;
+  transition: transform 280ms ease;
+}
+.color-option:hover .color-thumb img { transform: scale(1.04); }
+.color-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 6px 2px;
+}
+.color-info .swatch {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  border: 1px solid rgba(0,0,0,.08);
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.4);
+  flex: 0 0 auto;
+}
+
+/* ---------- Fade premium ao trocar imagem do cabide ---------- */
+.hanger-wrap {
+  transition: opacity 280ms cubic-bezier(0.22, 1, 0.36, 1),
+              filter   280ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, filter;
+}
+.hanger-wrap.swapping {
+  opacity: 0.35;
+  filter: blur(2px);
+}
+
+/* Loading dot elegante sobre o preview quando trocando */
+.hanger-wrap.swapping::after {
+  content: "";
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 28px; height: 28px;
+  margin: -14px 0 0 -14px;
+  border-radius: 50%;
+  border: 2px solid rgba(20,14,8,0.12);
+  border-top-color: var(--brand, #2b1f17);
+  animation: hangerSpin 720ms linear infinite;
+  pointer-events: none;
+}
+@keyframes hangerSpin { to { transform: rotate(360deg); } }
+.hanger-wrap { position: relative; }
+
+/* Fade-in sutil ao montar opções de cor (após troca de modelo) */
+.option-grid.colors .color-option {
+  animation: fadeUp 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.option-grid.colors .color-option:nth-child(1) { animation-delay: 0ms; }
+.option-grid.colors .color-option:nth-child(2) { animation-delay: 40ms; }
+.option-grid.colors .color-option:nth-child(3) { animation-delay: 80ms; }
+.option-grid.colors .color-option:nth-child(4) { animation-delay: 120ms; }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
